@@ -3,10 +3,14 @@
 namespace LKDevelopment\UptimeMonitorAPI\Http\Controller;
 
 use Spatie\Url\Url;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Spatie\UptimeMonitor\Models\Monitor;
+use Spatie\UptimeMonitor\Exceptions\CannotSaveMonitor;
 use Illuminate\Foundation\Validation\ValidatesRequests;
+
+use LKDevelopment\UptimeMonitorAPI\Http\Resources\MonitorResource;
 
 class MonitorController extends Controller
 {
@@ -30,17 +34,29 @@ class MonitorController extends Controller
      */
     public function store(Request $request)
     {
+        $status = 200;
         $this->validate($request, config('laravel-uptime-monitor-api.validationRules'));
         $url = Url::fromString($request->get('url'));
-        Monitor::create([
+        try{ 
+            Monitor::create([
             'url' => trim($url, '/'),
             'look_for_string' => $request->get('look_for_string') ?? '',
             'uptime_check_method' => $request->has('look_for_string') ? 'get' : 'head',
             'certificate_check_enabled' => $url->getScheme() === 'https',
             'uptime_check_interval_in_minutes' => $request->get('uptime_check_interval_in_minutes'),
-        ]);
-
-        return response()->json(['created' => true]);
+            'uptime_check_failure_reason' => ''
+            ]);
+       } catch (Exception $exception){
+            // set status to "conflict" - because we can't create an existing monitor again
+            if(get_class($exception) === "Spatie\UptimeMonitor\Exceptions\CannotSaveMonitor"){
+                $status = 409;
+            } else {
+                // set status to bad request because we are unsure why the request failed
+                $status = 400;
+            }
+            return response()->json(['created' => false, 'error' => $exception->getMessage()], $status );
+        }
+        return response()->json(['created' => true], $status);
     }
 
     /**
@@ -51,7 +67,7 @@ class MonitorController extends Controller
      */
     public function show($id)
     {
-        return Monitor::findOrFail($id);
+        return new MonitorResource(Monitor::findOrFail($id));
     }
 
     /**
@@ -74,6 +90,7 @@ class MonitorController extends Controller
             'uptime_check_method' => $request->has('look_for_string') ? 'get' : 'head',
             'certificate_check_enabled' => $url->getScheme() === 'https',
             'uptime_check_interval_in_minutes' => $request->get('uptime_check_interval_in_minutes'),
+            'uptime_check_failure_reason' => ''
         ]);
 
         return response()->json(['updated' => true]);
@@ -91,5 +108,40 @@ class MonitorController extends Controller
         $monitor->delete();
 
         return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * Count a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function count()
+    {
+        return response()->json(['count' => Monitor::count()]);
+    }    
+
+    /**
+     * Enables a monitor.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\Response
+     */
+    public function enable($id)
+    {
+        $monitor = Monitor::findOrFail($id);
+        $monitor->enable();
+        return response()->json(['enabled' => true]);
+    }
+    /**
+     * Disables a monitor.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\Response
+     */
+    public function disable($id)
+    {
+        $monitor = Monitor::findOrFail($id);
+        $monitor->disable();
+        return response()->json(['disabled' => true]);
     }
 }
