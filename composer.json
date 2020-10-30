@@ -18,14 +18,8 @@
     "require": {
         "php": "^7.0",
         "spatie/laravel-uptime-monitor": "^3.0",
-        "illuminate/support": "^5.4.11",
-        "illuminate/database": "^5.4.11"
-    },
-    "require-dev": {
-        "mockery/mockery": "0.9.5",
-        "orchestra/testbench": "~3.4.0@dev",
-        "orchestra/database": "~3.4.0@dev",
-        "phpunit/phpunit": "^5.7"
+        "illuminate/support": "^7.13|^8.0",
+        "illuminate/database": "^7.13|^8.0"
     },
     "autoload": {
         "psr-4": {
